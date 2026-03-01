@@ -1,0 +1,15 @@
+# Allow egress to monitoring namespace (Prometheus scraping, etc.)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-monitoring
+  namespace: demo
+spec:
+  endpointSelector: { }
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system

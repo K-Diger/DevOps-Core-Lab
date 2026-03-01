@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: load-generator
+  namespace: demo
+  labels:
+    app: load-generator
+    env: dev
+    team: platform
+spec:
+  completions: 1
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: load-generator
+        env: dev
+        team: platform
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      restartPolicy: Never
+      containers:
+        - name: load-generator
+          image: curlimages/curl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Load Generator 시작 ==="
+              echo "East-West (클러스터 내부) + North-South (Kong Gateway 경유) 트래픽 생성"
+              echo ""
+
+              # East-West: 클러스터 내부 직접 호출 (50건)
+              echo "--- East-West 트래픽 (50건) ---"
+              for i in $(seq 1 50); do
+                case $((i % 5)) in
+                  0) ENDPOINT="/get" ;;
+                  1) ENDPOINT="/status/200" ;;
+                  2) ENDPOINT="/headers" ;;
+                  3) ENDPOINT="/delay/1" ;;
+                  4) ENDPOINT="/status/500" ;;
+                esac
+                curl -s -o /dev/null -w "[E-W] Request ${i}: %{http_code} (%{time_total}s)\n" \
+                  "http://backend.demo.svc/${ENDPOINT}" || true
+                sleep 0.3
+              done
+
+              # North-South: Kong Gateway 경유 (50건, 프로덕션 트래픽 패턴)
+              echo ""
+              echo "--- North-South 트래픽 (50건, Kong Gateway 경유) ---"
+              for i in $(seq 1 50); do
+                case $((i % 5)) in
+                  0) ENDPOINT="/get" ;;
+                  1) ENDPOINT="/status/200" ;;
+                  2) ENDPOINT="/headers" ;;
+                  3) ENDPOINT="/delay/1" ;;
+                  4) ENDPOINT="/status/500" ;;
+                esac
+                curl -s -o /dev/null -w "[N-S] Request ${i}: %{http_code} (%{time_total}s)\n" \
+                  -H "Host: api.lab-dev.local" \
+                  "http://kong-kong-proxy.kong.svc/${ENDPOINT}" || true
+                sleep 0.3
+              done
+
+              echo ""
+              echo "=== Load Generator 완료: E-W 50건 + N-S 50건 = 100건 전송 ==="
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true

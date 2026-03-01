@@ -1,0 +1,18 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireLabels
+metadata:
+  name: require-labels
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [ "" ]
+        kinds: [ "Pod" ]
+      - apiGroups: [ "apps" ]
+        kinds: [ "Deployment", "StatefulSet", "DaemonSet" ]
+    namespaces: [ "demo" ]
+  parameters:
+    labels:
+      - "app"
+      - "env"
+      - "team"

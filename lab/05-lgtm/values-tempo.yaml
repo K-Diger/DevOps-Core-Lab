@@ -1,0 +1,102 @@
+# Tempo - Production-parity configuration
+# Production: v2.9.1, monolithic, filesystem storage, metrics generator enabled
+# Lab: identical settings, filesystem storage
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/tempo/tempo.yml
+
+tempo:
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+  # Production-identical ingester settings
+  ingester:
+    trace_idle_period: 60s            # Production: 60s (accounts for tail_sampling 30s + batch + network)
+    flush_check_period: 10s           # Production-identical
+
+  # Production-identical query frontend SLOs
+  query_frontend:
+    search:
+      duration_slo: 5s
+      throughput_bytes_slo: 1.073741824e+09  # 1 GiB/s
+    trace_by_id:
+      duration_slo: 5s
+
+  # Production-identical compactor / retention
+  compactor:
+    compaction:
+      block_retention: 168h           # 7 days (production-identical)
+
+  # Production-identical overrides (legacy format)
+  # Tempo 2.9.0: new format은 defaults.global.max_bytes_per_trace 구조이나,
+  # chart defaults와의 충돌 방지를 위해 안정적인 legacy format 사용
+  overrides:
+    defaults: ~                                     # chart 기본값 defaults: {} 제거 (legacy mode와 충돌)
+    per_tenant_override_config: /conf/overrides.yaml
+    max_bytes_per_trace: 10000000   # 10MB (prevents OOM from recursive traces)
+
+  # Production-identical metrics generator
+  # chart의 metricsGenerator 값으로 설정 (overrides.defaults 대신)
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://mimir-gateway.monitoring.svc:80/api/v1/push"
+    processor:
+      service_graphs:
+        dimensions:
+          - http.method
+          - http.status_code
+          - http.route
+          - peer.service
+          - db.system
+          - db.operation
+          - messaging.system
+          - messaging.operation
+          - messaging.destination.name
+          - rpc.system
+        enable_client_server_prefix: true
+      span_metrics:
+        dimensions:
+          - service.name
+          - span.name
+          - span.kind
+          - status.code
+          - http.method
+          - http.status_code
+          - http.route
+          - peer.service
+          - db.system
+          - messaging.system
+        enable_target_info: false
+    storage:
+      path: /var/tempo/generator/wal
+      remote_write:
+        - url: http://mimir-gateway.monitoring.svc:80/api/v1/push
+          send_exemplars: true
+          headers:
+            X-Scope-OrgID: anonymous
+    traces_storage:
+      path: /var/tempo/generator/traces
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1536Mi                  # Production: 1536M (increased after OOM at 512M)
+    requests:
+      cpu: 100m
+      memory: 512Mi                   # Production: 512M reservation
+
+persistence:
+  enabled: true
+  size: 5Gi

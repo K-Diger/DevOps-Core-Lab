@@ -1,0 +1,57 @@
+# AlertManager - Production-parity configuration (Lab version)
+# Production: Slack + Email notifications, 7 receivers, 6 inhibition rules
+# Lab: Slack webhook replaced with null receiver (no external access)
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/alertmanager/alertmanager.yml
+
+global:
+  resolve_timeout: 5m                 # Production-identical
+
+route:
+  group_by: [ 'alertname', 'severity' ] # Production-identical
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'null'                    # Lab: no external notification (production: slack-notifications)
+
+  routes:
+    # Critical alerts — shorter intervals (production-identical routing logic)
+    - match:
+        severity: critical
+      receiver: 'null'
+      group_wait: 10s                 # Production-identical
+      group_interval: 2m             # Production-identical
+      repeat_interval: 15m           # Production-identical
+
+    - match:
+        severity: warning
+      receiver: 'null'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+receivers:
+  - name: 'null'                      # Lab: sink all alerts (replace with Slack in production)
+
+# Production-identical inhibition rules
+inhibit_rules:
+  # 1. Critical suppresses Warning for same alertname + instance
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: [ 'alertname', 'instance' ]
+
+  # 2. NodeExporterDown suppresses all warning/info on that instance
+  - source_matchers:
+      - alertname = NodeExporterDown
+    target_matchers:
+      - severity =~ "warning|info"
+    equal: [ 'instance' ]
+
+  # 3. SpringBootAppDown suppresses app-level alerts on same instance
+  - source_matchers:
+      - alertname = SpringBootAppDown
+    target_matchers:
+      - alertname =~ "HighError.*|HighResponse.*|Jvm.*|TooMany.*|Hikari.*|Tomcat.*|HttpRequest.*"
+    equal: [ 'instance' ]

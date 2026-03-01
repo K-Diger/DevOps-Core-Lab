@@ -1,0 +1,6 @@
+apiVersion: v2
+name: demo-app
+description: Demo application for ArgoCD GitOps lab
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

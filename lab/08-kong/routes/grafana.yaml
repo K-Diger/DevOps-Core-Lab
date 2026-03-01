@@ -1,0 +1,21 @@
+# HTTPRoute: Grafana
+# grafana.lab-dev.local → grafana.monitoring.svc:80
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+  hostnames:
+    - "grafana.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: grafana
+          port: 80

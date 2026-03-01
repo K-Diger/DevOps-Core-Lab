@@ -1,0 +1,183 @@
+# Alert Rules - Production-parity subset for Lab
+# Production: 102 rules across 8 groups
+# Lab: representative subset (spring-boot + infrastructure + observability)
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/mimir/rules/alerts.yml
+namespace: lab
+
+groups:
+  # --- Spring Boot Application Alerts (production-identical thresholds) ---
+  - name: spring-boot-alerts
+    interval: 15s
+    rules:
+      - alert: SpringBootAppDown
+        expr: absent(jvm_info) == 1
+        for: 2m                       # Production: 120s
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service_name }} 앱이 다운되었습니다"
+          description: "JVM 메트릭이 2분 이상 수집되지 않습니다."
+
+      - alert: HighErrorRate
+        expr: |
+          sum by (service_name) (
+            rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+          ) /
+          sum by (service_name) (
+            rate(http_server_requests_seconds_count[5m])
+          ) > 0.05
+        for: 5m                       # Production-identical
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} 5xx 에러율 {{ $value | humanizePercentage }}"
+          description: "5xx 에러율이 5% 초과 (5분 지속)"
+
+      - alert: HighErrorRateCritical
+        expr: |
+          sum by (service_name) (
+            rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+          ) /
+          sum by (service_name) (
+            rate(http_server_requests_seconds_count[5m])
+          ) > 0.15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service_name }} 5xx 에러율 {{ $value | humanizePercentage }} (CRITICAL)"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service_name, le) (
+              rate(http_server_requests_seconds_bucket[5m])
+            )
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} P95 응답시간 {{ $value }}s"
+
+  # --- Early Warning Alerts (production-identical) ---
+  - name: early-warning-alerts
+    interval: 15s
+    rules:
+      - alert: TomcatThreadPoolExhausting
+        expr: |
+          tomcat_threads_busy_threads /
+          tomcat_threads_config_max_threads > 0.7
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} Tomcat 스레드 풀 {{ $value | humanizePercentage }} 사용"
+
+      - alert: TomcatThreadPoolCritical
+        expr: |
+          tomcat_threads_busy_threads /
+          tomcat_threads_config_max_threads > 0.9
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service_name }} Tomcat 스레드 풀 {{ $value | humanizePercentage }} (CRITICAL)"
+
+      - alert: HikariConnectionPoolExhausting
+        expr: |
+          hikaricp_connections_active /
+          hikaricp_connections_max > 0.7
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} HikariCP 커넥션 풀 {{ $value | humanizePercentage }}"
+
+      - alert: HikariConnectionPoolCritical
+        expr: |
+          hikaricp_connections_active /
+          hikaricp_connections_max > 0.9
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service_name }} HikariCP {{ $value | humanizePercentage }} (CRITICAL)"
+
+      - alert: HikariConnectionPendingHigh
+        expr: hikaricp_connections_pending > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} HikariCP pending {{ $value }}건"
+
+      - alert: JvmHeapUsageHigh
+        expr: |
+          jvm_memory_used_bytes{area="heap"} /
+          jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} JVM 힙 메모리 {{ $value | humanizePercentage }}"
+
+  # --- Infrastructure Alerts (production-identical) ---
+  - name: infrastructure-alerts
+    interval: 15s
+    rules:
+      - alert: NodeHighCpuUsage
+        expr: |
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} CPU {{ $value }}%"
+
+      - alert: NodeHighMemoryUsage
+        expr: |
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} 메모리 {{ $value }}%"
+
+      - alert: NodeDiskSpaceLow
+        expr: |
+          (1 - node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} 디스크 {{ $value }}%"
+
+  # --- Observability Stack Alerts (production-identical) ---
+  - name: observability-alerts
+    interval: 30s
+    rules:
+      - alert: LokiIngestionErrors
+        expr: rate(loki_distributor_lines_received_total{status="error"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Loki 로그 수집 에러 발생"
+
+      - alert: TempoIngestionErrors
+        expr: rate(tempo_distributor_spans_received_total{status="error"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tempo 트레이스 수집 에러 발생"
+
+      - alert: MimirIngestionErrors
+        expr: rate(cortex_discarded_samples_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mimir 메트릭 수집 드랍 발생"

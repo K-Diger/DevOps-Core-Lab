@@ -1,0 +1,12 @@
+# ztunnel - Production-parity configuration
+# Production: DaemonSet, no CPU limit (controlled by ZTUNNEL_WORKER_THREADS)
+# Lab: identical resource profile
+
+resources:
+  requests:
+    cpu: 200m                         # Production-identical
+    memory: 512Mi                     # Production-identical
+  limits:
+    # No CPU limit — production-identical
+    # CPU is controlled by ZTUNNEL_WORKER_THREADS env var
+    memory: 1Gi                       # Production-identical

@@ -1,0 +1,27 @@
+# istiod - Production-parity configuration
+# Production: v1.29.0, 2 replicas, REGISTRY_ONLY outbound
+# Lab: same settings, 1 replica for resource efficiency
+#
+# Differences from production:
+#   - pilot.replicaCount: 1 (production: 2)
+#   - global.hub: default (production: registry.example.com/istio)
+
+profile: ambient
+
+pilot:
+  replicaCount: 1                     # Production: 2
+
+  resources: # Production-identical resource limits
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+meshConfig:
+  accessLogFile: /dev/stdout          # Production-identical
+  enableTracing: true                 # Production-identical
+
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY               # Production-identical: only registered services reachable

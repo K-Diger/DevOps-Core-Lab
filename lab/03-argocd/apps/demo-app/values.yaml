@@ -1,0 +1,56 @@
+global:
+  env: dev
+  team: platform
+
+namespace:
+  create: true
+  name: demo
+  istioAmbient: true
+
+backend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: kennethreitz/httpbin
+    tag: latest
+  port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+  probes:
+    readiness:
+      path: /status/200
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    liveness:
+      path: /status/200
+      initialDelaySeconds: 10
+      periodSeconds: 30
+
+frontend:
+  enabled: true
+  replicas: 1
+  image:
+    repository: curlimages/curl
+    tag: latest
+  command: ["sleep", "infinity"]
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+
+loadGenerator:
+  enabled: false

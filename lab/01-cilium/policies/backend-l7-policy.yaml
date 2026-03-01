@@ -1,0 +1,40 @@
+# L7 HTTP 정책: backend에 대한 HTTP 메서드/경로 기반 접근 제어
+# Cilium Envoy DaemonSet이 이 정책을 처리한다
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: backend-l7-http-policy
+  namespace: demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: backend
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: frontend
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+          rules:
+            http:
+              - method: GET
+                path: "/status/.*"
+              - method: GET
+                path: "/get"
+              - method: GET
+                path: "/headers"
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kong
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+          rules:
+            http:
+              - method: GET
+              - method: POST
+              - method: PUT
+              - method: DELETE

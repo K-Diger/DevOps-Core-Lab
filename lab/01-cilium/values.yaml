@@ -1,0 +1,83 @@
+# Cilium CNI - Production-parity configuration
+# Production: v1.19.1 on kubeadm, Harbor registry, geneve tunnel
+# Lab: same version and settings, public registry
+#
+# Production-identical settings:
+#   kubeProxyReplacement: true        (kube-proxy not installed)
+#   cni.exclusive: false              (Istio CNI chaining)
+#   socketLB.hostNamespaceOnly: true  (ztunnel traffic preservation)
+#   routingMode: tunnel               (Geneve overlay, port 6081/UDP)
+#   tunnelProtocol: geneve
+#   encryption.type: wireguard
+#   ipam.mode: kubernetes
+#   hubble.metrics: dns,drop,tcp,flow,icmp,http (6 protocols)
+#   bpf.monitorAggregation: none      (full packet visibility)
+#   prometheus.enabled: true
+#
+# Lab-specific overrides (macOS Docker Desktop):
+#   bpf.masquerade: false             (Docker Desktop kernel limitation)
+#   wireguard.userspaceFallback: true (no kernel WireGuard module on macOS)
+#
+# Production reference: infrastructure/k8s/live/30-install-cilium.sh
+
+# --- kube-proxy Replacement ---
+kubeProxyReplacement: "true"
+k8sServiceHost: ""  # Injected by install.sh
+k8sServicePort: "6443"
+
+# --- Istio Ambient Mode Compatibility ---
+# CRITICAL: These two settings enable Cilium + Istio coexistence
+cni:
+  exclusive: false  # Do NOT delete other CNI configs (Istio CNI needs this)
+socketLB:
+  hostNamespaceOnly: true  # Restrict socket LB to host namespace only
+
+# --- eBPF Settings ---
+bpf:
+  masquerade: false  # MUST be false on macOS Docker Desktop (bridge conflict)
+  monitorAggregation: none  # Pass all events to Hubble for lab observation
+
+# --- IPAM & Routing ---
+ipam:
+  mode: kubernetes  # Integrates with Kind's podSubnet
+routingMode: tunnel
+tunnelProtocol: vxlan  # geneve is not supported on Docker Desktop linuxkit kernel
+
+# --- WireGuard Encryption ---
+encryption:
+  enabled: true
+  type: wireguard
+  wireguard:
+    userspaceFallback: true  # Required for macOS (no kernel WireGuard module)
+
+# --- Hubble Observability ---
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+  metrics:
+    enabled:
+      - dns
+      - drop
+      - tcp
+      - flow
+      - icmp
+      - http
+
+# --- Prometheus Metrics ---
+prometheus:
+  enabled: true
+operator:
+  prometheus:
+    enabled: true
+
+# --- Resource Limits (Kind-optimized) ---
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

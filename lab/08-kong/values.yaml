@@ -1,0 +1,37 @@
+# Kong Ingress Controller - DB-less mode with Gateway API
+#
+# Production parity:
+#   - DB-less mode: K8s CRD as config store (no external DB dependency)
+#   - Gateway API: standard Kubernetes gateway routing (replaces Ingress)
+#   - NodePort: 30080/30443 → Kind extraPortMappings → localhost:80/443
+#
+# References:
+#   - https://docs.konghq.com/kubernetes-ingress-controller/latest/
+#   - https://github.com/Kong/charts/tree/main/charts/ingress
+
+# Gateway API feature gates
+controller:
+  ingressController:
+    env:
+      feature_gates: "GatewayAlpha=true"
+
+gateway:
+  # DB-less mode: K8s CRD가 config store
+  env:
+    database: "off"
+
+  proxy:
+    # NodePort → Kind extraPortMappings 연동
+    type: NodePort
+    http:
+      nodePort: 30080      # kind-config: containerPort 30080 → hostPort 80
+    tls:
+      nodePort: 30443      # kind-config: containerPort 30443 → hostPort 443
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi

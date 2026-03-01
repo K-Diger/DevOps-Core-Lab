@@ -1,0 +1,72 @@
+# Platform Resources - Production-parity configuration
+# Production: ResourceQuota, LimitRange, PDB, PriorityClasses
+# Lab: identical policies applied to demo namespace
+---
+# PriorityClasses (production-identical)
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: lab-critical
+value: 1000000
+globalDefault: false
+description: "Critical services (database, cache, messaging)"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: lab-high
+value: 100000
+globalDefault: false
+description: "High priority services (API servers)"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: lab-normal
+value: 10000
+globalDefault: true
+description: "Normal workloads (default)"
+---
+# ResourceQuota (production-parity, lab-scaled)
+# Production: CPU req=64, lim=128, Mem req=256Gi, lim=512Gi, pods=100
+# Lab: proportionally reduced for Kind cluster
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: demo-quota
+  namespace: demo
+spec:
+  hard:
+    requests.cpu: "4"                 # Production: 64
+    requests.memory: 8Gi              # Production: 256Gi
+    limits.cpu: "8"                   # Production: 128
+    limits.memory: 16Gi              # Production: 512Gi
+    pods: "20"                        # Production: 100
+---
+# LimitRange (production-identical defaults)
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: demo-limits
+  namespace: demo
+spec:
+  limits:
+    - type: Container
+      default: # Default limits (production-identical)
+        cpu: "2"
+        memory: 4Gi
+      defaultRequest: # Default requests (production-identical)
+        cpu: 250m
+        memory: 512Mi
+---
+# PodDisruptionBudgets (production-identical pattern)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: demo
+spec:
+  minAvailable: 1                     # Production: minAvailable=1 for most services
+  selector:
+    matchLabels:
+      app: backend

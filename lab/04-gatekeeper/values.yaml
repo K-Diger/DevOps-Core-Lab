@@ -1,0 +1,34 @@
+# OPA Gatekeeper - Production-parity configuration
+# Production: v3.19.1, 2 replicas, audit every 60s
+# Lab: 1 replica, otherwise identical
+#
+# Differences from production:
+#   - replicas: 1 (production: 2)
+#   - audit.replicas: 1 (production: default)
+
+replicas: 1                           # Production: 2
+
+audit:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 512Mi
+
+# Production-identical policy settings
+auditInterval: 60                     # Audit every 60 seconds
+constraintViolationsLimit: 20         # Max violations per constraint in audit
+auditFromCache: true                  # Audit from OPA cache (faster)
+emitAdmissionEvents: true             # Emit K8s events on admission decisions
+emitAuditEvents: true                 # Emit K8s events on audit findings

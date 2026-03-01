@@ -1,0 +1,29 @@
+global:
+  env: live
+  team: platform
+
+backend:
+  replicas: 4
+  image:
+    repository: kennethreitz/httpbin
+    tag: "0.9.2"
+  resources:
+    requests:
+      cpu: 400m
+      memory: 512Mi
+    limits:
+      cpu: 800m
+      memory: 1Gi
+
+frontend:
+  replicas: 2
+  image:
+    repository: curlimages/curl
+    tag: "8.5.0"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi

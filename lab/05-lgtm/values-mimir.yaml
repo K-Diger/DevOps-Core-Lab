@@ -1,0 +1,184 @@
+# Mimir - Production-parity configuration
+# Production: v2.17.6 (LTS), monolithic mode, filesystem storage, ruler enabled
+# Lab: identical settings and limits (mimir-distributed chart 6.0.5 / Mimir 3.0.1)
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/mimir/mimir.yml
+
+mimir:
+  structuredConfig:
+    # Production-identical: monolithic mode
+    target: all
+    multitenancy_enabled: false
+
+    common:
+      storage:
+        backend: filesystem
+        filesystem:
+          dir: /data/mimir
+
+    # Production-identical block storage
+    blocks_storage:
+      backend: filesystem
+      filesystem:
+        dir: /data/mimir/blocks
+      tsdb:
+        dir: /data/mimir/tsdb
+        retention_period: 168h        # Production: 7 days
+
+    # Production-identical compactor
+    compactor:
+      data_dir: /data/mimir/compactor
+      compaction_interval: 30m        # Production-identical
+
+    # Note: store_gateway.index_cache was removed in Mimir 3.0
+    # Block index is now cached via blocks_storage.bucket_store.index_cache
+
+    # Production-identical ruler
+    ruler:
+      evaluation_interval: 15s        # Production: matches Prometheus interval
+      alertmanager_url: http://alertmanager.monitoring.svc:9093
+      rule_path: /tmp/mimir/ruler
+      enable_api: true
+    ruler_storage:
+      backend: filesystem
+      filesystem:
+        dir: /data/mimir/rules
+
+    # Production-identical limits
+    limits:
+      ingestion_rate: 50000           # Production: 50000 samples/s
+      ingestion_burst_size: 500000    # Production: rate x10 (Spring Boot restart/WAL replay)
+      max_global_series_per_user: 800000  # Production: 800000
+      max_global_series_per_metric: 50000 # Production-identical
+      max_label_names_per_series: 25      # Production: OTel resource_to_telemetry adds ~21 labels
+      max_fetched_series_per_query: 100000 # Production-identical
+      max_query_lookback: 168h            # Production: 7 days
+      compactor_blocks_retention_period: 168h  # Production: 7 days
+      out_of_order_time_window: 15m       # Production: for OTel Collector batch/retry delays
+
+    # Lab: Kafka ingest storage 비활성화 → classic write path 사용
+    # (chart 6.0.5 기본값: enabled, Mimir 3.0 default)
+    ingest_storage:
+      enabled: false
+
+    # classic write path에서는 push gRPC가 필수 (chart 기본값: false for ingest_storage)
+    ingester:
+      push_grpc_method_enabled: true
+
+    usage_stats:
+      enabled: false
+
+# Lab: single replicas for all components
+distributor:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+ingester:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false                      # Lab: single node, zone-awareness 불필요
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  persistentVolume:
+    size: 5Gi
+
+querier:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+query_frontend:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+query_scheduler:
+  replicas: 1
+
+compactor:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  persistentVolume:
+    size: 5Gi
+
+store_gateway:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false                      # Lab: single node, zone-awareness 불필요
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 256Mi
+  persistentVolume:
+    size: 5Gi
+
+# Enable ruler for alert/recording rules (production-identical)
+ruler:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  # Mimir 3.0: readOnlyRootFilesystem 기본 활성화로 /tmp 쓰기 불가 → emptyDir 마운트
+  extraVolumes:
+    - name: tmp
+      emptyDir: { }
+  extraVolumeMounts:
+    - name: tmp
+      mountPath: /tmp
+
+# Enable alertmanager
+alertmanager:
+  enabled: false                      # Using standalone AlertManager instead
+
+overrides_exporter:
+  enabled: false
+
+minio:
+  enabled: false
+
+nginx:
+  enabled: false
+
+# Lab: embedded Kafka 비활성화 (chart 6.0.5 기본값: enabled)
+# ingest_storage도 structuredConfig에서 비활성화하여 classic write path 사용
+kafka:
+  enabled: false
+
+gateway:
+  enabledNonEnterprise: true
+  replicas: 1

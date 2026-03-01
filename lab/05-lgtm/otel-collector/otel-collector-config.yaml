@@ -1,0 +1,293 @@
+# OTel Collector Gateway - Production-parity configuration
+# Production: v0.146.0, tail_sampling with 3 policies, trace enrichment
+# Lab: identical pipeline logic, lab-adjusted resource limits
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/otel-collector/otel-collector-config.yml
+#
+# Key production behaviors replicated:
+#   1. Tail sampling: ERROR 100%, slow(>2s) 100%, normal 10%
+#   2. Entrypoint span filtering: only SERVER/CONSUMER spans (prevents orphan JDBC spans)
+#   3. Health check exclusion: /health, /actuator/health, kube-probe user-agent
+#   4. Trace enrichment: peer.service population from messaging/db/rpc attributes
+#   5. Metric sanitization: OTel dot-notation → Prometheus underscore
+#   6. High-cardinality resource attribute pruning
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16     # Production-identical
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # --- Memory Protection (production-identical ratio) ---
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384                    # Lab: 512MB container × 75% (production: 1536 = 2048 × 75%)
+    spike_limit_mib: 76               # Lab: limit × 20%
+
+  # --- Batch Processors ---
+  batch:
+    send_batch_max_size: 16384        # Production-identical
+    timeout: 5s                       # Production-identical
+
+  batch/traces:
+    send_batch_size: 2048             # Production-identical
+    send_batch_max_size: 8192         # Production-identical
+    timeout: 1s                       # Production-identical
+
+  # --- Resource Attribution ---
+  resource:
+    attributes:
+      - key: environment
+        value: lab                    # Production: "production"
+        action: upsert
+      - key: cluster
+        value: lab-dev                # Production: "prod-platform"
+        action: upsert
+      - key: collector.name
+        value: otel-gateway
+        action: upsert
+
+  # --- Metric Processing (production-identical) ---
+  attributes/metrics:
+    actions:
+      - key: source
+        value: otel
+        action: upsert
+
+  # Production-identical: prune high-cardinality resource attributes
+  resource/metrics_prune:
+    attributes:
+      - key: container.id
+        action: delete
+      - key: host.id
+        action: delete
+      - key: process.pid
+        action: delete
+      - key: process.executable.name
+        action: delete
+      - key: process.executable.path
+        action: delete
+      - key: process.command_line
+        action: delete
+      - key: process.runtime.name
+        action: delete
+      - key: process.runtime.version
+        action: delete
+      - key: process.runtime.description
+        action: delete
+      - key: telemetry.sdk.name
+        action: delete
+      - key: telemetry.sdk.language
+        action: delete
+      - key: telemetry.sdk.version
+        action: delete
+      - key: telemetry.distro.name
+        action: delete
+      - key: telemetry.distro.version
+        action: delete
+      - key: service_instance_id
+        action: delete
+      - key: service_namespace
+        action: delete
+      - key: collector.name
+        action: delete
+      - key: cluster
+        action: delete
+      - key: environment
+        action: delete
+
+  # Production-identical: filter out noisy OTel metrics
+  filter/otlp_metrics:
+    metrics:
+      exclude:
+        match_type: regexp
+        metric_names:
+          - "go_.*"
+          - "promhttp_.*"
+          - "jvm_compilation_.*"
+          - "jvm_info"
+          - "tomcat_sessions_.*"
+
+  # Production-identical: dot → underscore for Prometheus compatibility
+  transform/sanitize_labels:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["service_instance_id"], attributes["service.instance.id"])
+          - delete_key(attributes, "service.instance.id")
+          - set(attributes["service_name"], attributes["service.name"])
+          - delete_key(attributes, "service.name")
+          - set(attributes["service_namespace"], attributes["service.namespace"])
+          - delete_key(attributes, "service.namespace")
+          - set(attributes["app"], attributes["application"])
+
+  # --- Tail Sampling (production-identical 3 policies) ---
+  tail_sampling:
+    decision_wait: 30s                # Production-identical
+    num_traces: 100000                # Production-identical
+    expected_new_traces_per_sec: 1000 # Production-identical
+    decision_cache:
+      sampled_cache_size: 300000      # Production-identical
+      non_sampled_cache_size: 600000  # Production-identical
+    policies:
+      # Policy 1: ERROR traces — 100% (requires SERVER/CONSUMER entrypoint)
+      - name: error-traces
+        type: and
+        and:
+          and_sub_policy:
+            - name: has-entrypoint-span
+              type: string_attribute
+              string_attribute:
+                key: span.kind
+                values: [ "SPAN_KIND_SERVER", "SPAN_KIND_CONSUMER" ]
+            - name: is-error
+              type: status_code
+              status_code:
+                status_codes: [ "ERROR" ]
+
+      # Policy 2: Slow traces (>2s) — 100% (requires SERVER/CONSUMER entrypoint)
+      - name: slow-traces
+        type: and
+        and:
+          and_sub_policy:
+            - name: has-entrypoint-span
+              type: string_attribute
+              string_attribute:
+                key: span.kind
+                values: [ "SPAN_KIND_SERVER", "SPAN_KIND_CONSUMER" ]
+            - name: is-slow
+              type: latency
+              latency:
+                threshold_ms: 2000
+
+      # Policy 3: Normal traces — 10% probabilistic (excludes health checks)
+      - name: normal-non-health-traces
+        type: and
+        and:
+          and_sub_policy:
+            - name: has-server-span
+              type: string_attribute
+              string_attribute:
+                key: span.kind
+                values: [ "SPAN_KIND_SERVER" ]
+            - name: probabilistic-10pct
+              type: probabilistic
+              probabilistic:
+                sampling_percentage: 10
+
+  # Production-identical: populate peer.service for service map
+  transform/traces_enrich:
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["peer.service"], attributes["messaging.system"]) where attributes["messaging.system"] != nil and attributes["peer.service"] == nil
+          - set(attributes["peer.service"], attributes["db.system"]) where attributes["db.system"] != nil and attributes["peer.service"] == nil
+          - set(attributes["peer.service"], attributes["rpc.service"]) where attributes["rpc.service"] != nil and attributes["peer.service"] == nil
+          - set(attributes["peer.service"], attributes["server.address"]) where attributes["server.address"] != nil and attributes["peer.service"] == nil
+          - set(attributes["peer.service"], attributes["net.peer.name"]) where attributes["net.peer.name"] != nil and attributes["peer.service"] == nil
+
+  # System resource detection
+  resourcedetection:
+    detectors: [ system ]
+    override: false
+    system:
+      hostname_sources: [ os ]
+
+exporters:
+  # Metrics → Mimir (production-identical remote_write)
+  prometheusremotewrite/mimir:
+    endpoint: http://mimir-gateway.monitoring.svc:80/api/v1/push
+    add_metric_suffixes: true         # Production-identical
+    resource_to_telemetry_conversion:
+      enabled: true                   # Production-identical
+    external_labels:
+      cluster: lab-dev
+      environment: lab
+    headers:
+      X-Scope-OrgID: anonymous
+    retry_on_failure:
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Traces → Tempo
+  otlp/tempo:
+    endpoint: tempo.monitoring.svc:4317
+    tls:
+      insecure: true
+    sending_queue:
+      num_consumers: 10               # Production-identical
+      queue_size: 10000               # Production-identical
+    retry_on_failure:
+      initial_interval: 5s
+      max_interval: 30s
+
+  # Logs → Loki (OTLP native)
+  otlphttp/loki:
+    endpoint: http://loki.monitoring.svc:3100/otlp
+    tls:
+      insecure: true
+    sending_queue:
+      queue_size: 3000                # Production-identical
+    retry_on_failure:
+      initial_interval: 5s
+      max_interval: 30s
+
+service:
+  extensions: [ health_check ]
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+
+  pipelines:
+    # App metrics (OTLP → Mimir)
+    metrics:
+      receivers: [ otlp ]
+      processors:
+        - memory_limiter
+        - resourcedetection
+        - resource
+        - attributes/metrics
+        - filter/otlp_metrics
+        - transform/sanitize_labels
+        - resource/metrics_prune
+        - batch
+      exporters: [ prometheusremotewrite/mimir ]
+
+    # Traces (OTLP → tail_sampling → Tempo)
+    traces:
+      receivers: [ otlp ]
+      processors:
+        - memory_limiter
+        - resourcedetection
+        - resource
+        - tail_sampling
+        - transform/traces_enrich
+        - batch/traces
+      exporters: [ otlp/tempo ]
+
+    # Logs (OTLP → Loki)
+    logs:
+      receivers: [ otlp ]
+      processors:
+        - memory_limiter
+        - resourcedetection
+        - resource
+        - batch
+      exporters: [ otlphttp/loki ]

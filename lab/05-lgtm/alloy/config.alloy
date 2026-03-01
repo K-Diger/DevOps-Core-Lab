@@ -1,0 +1,110 @@
+// Alloy Configuration - Production-parity
+// Production: Alloy DaemonSet for log collection + Prometheus scraping
+// Lab: identical role — logs to Loki, metrics to Mimir
+//
+// Note: Traces go through OTel Collector (not Alloy) for tail_sampling.
+// Production reference: infrastructure/k8s/live/60-deploy-monitoring-agents.sh (Alloy section)
+
+// ============================================================
+// Kubernetes Discovery
+// ============================================================
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+discovery.kubernetes "nodes" {
+  role = "node"
+}
+
+// ============================================================
+// Metrics Pipeline (Prometheus scraping → Mimir)
+// Production-identical: scrape kubelet + annotation-based pods
+// ============================================================
+
+// Scrape kubelet metrics
+prometheus.scrape "kubelet" {
+  targets    = discovery.kubernetes.nodes.targets
+  scheme     = "https"
+  tls_config {
+    insecure_skip_verify = true
+  }
+  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// Scrape pod metrics (annotation-based, production-identical pattern)
+prometheus.scrape "pods" {
+  targets    = discovery.kubernetes.pods.targets
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// Write metrics to Mimir
+// Production: remote_write to 10.125.11.118:9009/api/v1/push
+// Lab: cluster-internal Mimir gateway
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir-gateway.monitoring.svc:80/api/v1/push"
+    headers = {
+      "X-Scope-OrgID" = "anonymous",
+    }
+    queue_config {
+      capacity          = 10000       // Production-identical
+      max_shards        = 10          // Production-identical
+      min_shards        = 1
+      max_samples_per_send = 500      // Production-identical
+      batch_send_deadline  = "5s"     // Production-identical
+    }
+  }
+  external_labels = {
+    cluster     = "lab-dev",          // Production: "prod-k8s"
+    environment = "lab",              // Production: "live"
+  }
+}
+
+// ============================================================
+// Logs Pipeline (Kubernetes pod logs → Loki)
+// Production-identical: DaemonSet log collection
+// ============================================================
+
+// Discover log files from pods
+loki.source.kubernetes "pods" {
+  targets    = discovery.kubernetes.pods.targets
+  forward_to = [loki.process.pipeline.receiver]
+}
+
+// Process logs: add labels, extract metadata
+loki.process "pipeline" {
+  // Extract kubernetes labels
+  stage.labels {
+    values = {
+      namespace = "kubernetes_namespace_name",
+      pod       = "kubernetes_pod_name",
+      container = "kubernetes_container_name",
+    }
+  }
+
+  // Drop health check logs (production-identical)
+  stage.drop {
+    expression = ".*healthz.*"
+  }
+
+  stage.drop {
+    expression = ".*/actuator/health.*"
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+// Write logs to Loki
+// Production: batch_wait=1s, batch_size=1MiB, retry_on_http_429=true
+loki.write "loki" {
+  endpoint {
+    url        = "http://loki.monitoring.svc:3100/loki/api/v1/push"
+    batch_wait = "1s"                 // Production-identical
+    batch_size = "1MiB"               // Production-identical
+  }
+  external_labels = {
+    cluster     = "lab-dev",          // Production: "prod-k8s"
+    environment = "lab",              // Production: "live"
+  }
+}

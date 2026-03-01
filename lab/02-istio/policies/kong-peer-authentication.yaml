@@ -1,0 +1,19 @@
+# Kong Gateway PeerAuthentication — allow external plaintext on proxy ports
+# Kong은 N-S 인그레스 게이트웨이로, NodePort를 통해 외부 plaintext HTTP를 수신한다.
+# mesh-wide STRICT를 유지하되, Kong proxy 포트만 PERMISSIVE로 예외 처리.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: kong-allow-external
+  namespace: kong
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: app  # kong-gateway pod
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8000:
+      mode: PERMISSIVE  # HTTP proxy (NodePort 30080 → hostPort 80)
+    8443:
+      mode: PERMISSIVE  # TLS proxy (NodePort 30443 → hostPort 443)

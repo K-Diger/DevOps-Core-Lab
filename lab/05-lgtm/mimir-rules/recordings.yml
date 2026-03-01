@@ -1,0 +1,90 @@
+# Recording Rules - Production-parity subset for Lab
+# Production: 70+ rules across 6 groups
+# Lab: application + infrastructure recording rules
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/mimir/rules/recordings.yml
+namespace: lab
+
+groups:
+  # --- Application Recording Rules (production-identical) ---
+  - name: application-recordings
+    interval: 15s
+    rules:
+      # Request rate per service
+      - record: application:http_request_rate:rate5m
+        expr: sum by (service_name) (rate(http_server_requests_seconds_count[5m]))
+
+      # 5xx error rate per service
+      - record: application:http_error_rate_5xx:rate5m
+        expr: sum by (service_name) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+
+      # Error ratio per service
+      - record: application:http_error_ratio:rate5m
+        expr: |
+          sum by (service_name) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          /
+          sum by (service_name) (rate(http_server_requests_seconds_count[5m]))
+
+      # P99 latency per endpoint
+      - record: application:http_latency_p99:rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (service_name, uri, le) (
+              rate(http_server_requests_seconds_bucket[5m])
+            )
+          )
+
+      # P95 latency per endpoint
+      - record: application:http_latency_p95:rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service_name, uri, le) (
+              rate(http_server_requests_seconds_bucket[5m])
+            )
+          )
+
+      # HikariCP pool usage
+      - record: application:hikaricp_usage_ratio:rate5m
+        expr: |
+          hikaricp_connections_active /
+          hikaricp_connections_max
+
+      # JVM heap usage
+      - record: application:jvm_heap_usage_ratio:current
+        expr: |
+          jvm_memory_used_bytes{area="heap"} /
+          jvm_memory_max_bytes{area="heap"}
+
+      # GC pause ratio
+      - record: application:jvm_gc_pause_ratio:rate5m
+        expr: |
+          sum by (service_name) (rate(jvm_gc_pause_seconds_sum[5m]))
+
+  # --- Infrastructure Recording Rules (production-identical) ---
+  - name: infrastructure-recordings
+    interval: 15s
+    rules:
+      # Per-node CPU usage
+      - record: node:cpu_usage_ratio:rate5m
+        expr: |
+          1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))
+
+      # Per-node memory usage
+      - record: node:memory_usage_ratio:current
+        expr: |
+          1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+
+      # Per-node disk usage
+      - record: node:disk_usage_ratio:current
+        expr: |
+          1 - node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes
+
+      # Per-node network rx bytes
+      - record: node:network_rx_bytes:rate5m
+        expr: |
+          sum by (instance) (rate(node_network_receive_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[5m]))
+
+      # Per-node network tx bytes
+      - record: node:network_tx_bytes:rate5m
+        expr: |
+          sum by (instance) (rate(node_network_transmit_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[5m]))

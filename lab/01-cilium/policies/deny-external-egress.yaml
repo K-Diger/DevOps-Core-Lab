@@ -1,0 +1,12 @@
+# Deny all external egress traffic from demo namespace
+# Only cluster-internal traffic is allowed
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: deny-external-egress
+  namespace: demo
+spec:
+  endpointSelector: { }
+  egressDeny:
+    - toEntities:
+        - world

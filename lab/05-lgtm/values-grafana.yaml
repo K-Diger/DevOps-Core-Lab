@@ -1,0 +1,172 @@
+# Grafana - Production-parity configuration
+# Production: v11.5.2, 4 datasources with full trace↔log↔metrics correlation
+# Lab: identical datasource config, production-matching feature flags
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/grafana/
+
+service:
+  type: ClusterIP
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 512Mi                     # Production: 512M
+  requests:
+    cpu: 100m
+    memory: 128Mi                     # Production: 128M reservation
+
+persistence:
+  enabled: true
+  size: 1Gi
+
+# Production-identical feature flags
+envVars:
+  GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor,traceToLogs,traceToMetrics"
+  GF_UNIFIED_ALERTING_ENABLED: "true"
+  GF_ALERTING_ENABLED: "false"        # Disable legacy alerting
+
+# Production-identical datasources with full correlation
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    deleteDatasources: # Production: delete-and-recreate for idempotency
+      - name: Mimir
+        orgId: 1
+      - name: Loki
+        orgId: 1
+      - name: Tempo
+        orgId: 1
+      - name: AlertManager
+        orgId: 1
+    datasources:
+      # --- Mimir (Metrics) ---
+      # Production UID kept as "prometheus" for dashboard backward compatibility
+      - name: Mimir
+        type: prometheus
+        uid: prometheus                # Production-identical UID
+        url: http://mimir-gateway.monitoring.svc:80/prometheus
+        access: proxy
+        isDefault: true
+        jsonData:
+          httpMethod: POST            # Production-identical
+          prometheusType: Mimir       # Production-identical
+          cacheLevel: High            # Production-identical
+          manageAlerts: true          # Production: Mimir Ruler handles rule evaluation
+          disableRecordingRules: false
+          incrementalQueryOverlapWindow: 10m
+          exemplarTraceIdDestinations:
+            - name: traceId
+              datasourceUid: tempo    # Production-identical: exemplar → trace link
+          httpHeaderName1: X-Scope-OrgID
+        secureJsonData:
+          httpHeaderValue1: anonymous
+
+      # --- Loki (Logs) ---
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki.monitoring.svc:3100
+        access: proxy
+        jsonData:
+          maxLines: 1000              # Production-identical
+          timeout: 60                 # Production-identical
+          derivedFields:
+            # Production-identical: trace_id extraction for trace correlation
+            - datasourceUid: tempo
+              matcherRegex: "\\[([a-f0-9]{32}),"
+              name: TraceID
+              url: "$${__value.raw}"
+
+      # --- Tempo (Traces) ---
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.monitoring.svc:3200
+        access: proxy
+        jsonData:
+          nodeGraph:
+            enabled: true             # Production-identical
+
+          # Production-identical: service map
+          serviceMap:
+            datasourceUid: prometheus
+
+          # Production-identical: Loki search from traces
+          lokiSearch:
+            datasourceUid: loki
+
+          # Production-identical: Trace → Log correlation
+          tracesToLogs:
+            datasourceUid: loki
+            spanStartTimeShift: "-1h"
+            spanEndTimeShift: "1h"
+            filterByTraceID: true
+            tags:
+              - key: service.name
+                value: service_name
+            mapTagNamesEnabled: true
+            lokiQuery: '{service_name=~".+"} | trace_id = `$${__span.traceId}`'
+
+          # Production-identical: Trace → Metrics correlation
+          tracesToMetrics:
+            datasourceUid: prometheus
+            spanStartTimeShift: "-1h"
+            spanEndTimeShift: "1h"
+            tags:
+              - key: service.name
+                value: service
+              - key: span.name
+                value: span_name
+              - key: http.method
+                value: http_method
+              - key: http.route
+                value: http_route
+              - key: peer.service
+                value: peer_service
+              - key: db.system
+                value: db_system
+              - key: messaging.system
+                value: messaging_system
+            queries:
+              - name: "Request Rate"
+                query: "sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))"
+              - name: "Error Rate"
+                query: "sum(rate(traces_spanmetrics_calls_total{$$__tags,status_code=\"STATUS_CODE_ERROR\"}[5m]))"
+              - name: "Latency P95"
+                query: "histogram_quantile(0.95, sum(rate(traces_spanmetrics_duration_seconds_bucket{$$__tags}[5m])) by (le))"
+
+      # --- AlertManager ---
+      - name: AlertManager
+        type: alertmanager
+        uid: alertmanager
+        url: http://alertmanager.monitoring.svc:9093
+        access: proxy
+        jsonData:
+          implementation: prometheus
+
+# Production-identical dashboard provisioning
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 30     # Production-identical
+        allowUiUpdates: true          # Production-identical
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+dashboards:
+  default:
+    kubernetes-overview:
+      gnetId: 15520
+      revision: 2
+      datasource: Mimir
+    node-exporter:
+      gnetId: 1860
+      revision: 37
+      datasource: Mimir

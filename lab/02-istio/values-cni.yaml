@@ -1,0 +1,13 @@
+# Istio CNI - Production-parity configuration
+# Production: chained with Cilium CNI, ambient profile
+# Lab: identical settings
+
+profile: ambient
+
+cni:
+  cniBinDir: /opt/cni/bin             # Production-identical
+  cniConfDir: /etc/cni/net.d          # Production-identical
+  chained: true                       # Required for Cilium CNI chaining
+  psp:
+    enabled: false                    # PSP deprecated since K8s 1.25
+  logLevel: info                      # Production-identical

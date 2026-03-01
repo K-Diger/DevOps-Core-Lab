@@ -1,0 +1,43 @@
+# Kong Gateway resource (Gateway API)
+#
+# This is the single entry point for all external traffic.
+# HTTPRoutes reference this Gateway to route traffic to backend services.
+#
+# References:
+#   - https://gateway-api.sigs.k8s.io/api-types/gateway/
+#   - https://docs.konghq.com/kubernetes-ingress-controller/latest/concepts/gateway-api/
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: kong
+  annotations:
+    konghq.com/gatewayclass-unmanaged: "true"
+spec:
+  controllerName: konghq.com/kic-gateway-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: kong-gateway
+  namespace: kong
+spec:
+  gatewayClassName: kong
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: kong-default-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All

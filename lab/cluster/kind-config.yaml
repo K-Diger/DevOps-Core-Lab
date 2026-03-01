@@ -1,0 +1,92 @@
+# Kind Cluster Configuration for Cilium + Istio Ambient + Kong Gateway
+#
+# Production parity:
+#   - kubeProxyMode: none → Cilium kubeProxyReplacement=true
+#   - disableDefaultCNI: true → Cilium as sole CNI
+#   - Pod CIDR: 10.244.0.0/16 (same as production)
+#   - Service CIDR: 10.96.0.0/12 (same as production)
+#   - Kong Gateway: 유일한 외부 진입점 (NodePort 30080/30443 → hostPort 80/443)
+#   - kubeadm patches: audit-log, etcd tuning, admission plugins
+#
+# Traffic flow:
+#   Client → localhost:80 → Kind hostPort → Kong NodePort 30080 → HTTPRoute → Service
+#
+# References:
+#   - https://kind.sigs.k8s.io/docs/user/configuration/
+#   - https://docs.cilium.io/en/stable/installation/kind/
+#   - https://docs.konghq.com/kubernetes-ingress-controller/latest/
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+networking:
+  # Cilium eBPF replaces kube-proxy; running both causes ClusterIP routing conflicts
+  kubeProxyMode: "none"
+  # Prevent kindnet from initializing; nodes stay NotReady until Cilium installs
+  disableDefaultCNI: true
+  # Match production CIDR ranges
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
+
+nodes:
+  # --- Control Plane ---
+  - role: control-plane
+    labels:
+      ingress-ready: "true"
+      topology.kubernetes.io/zone: "az-a"
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            audit-log-maxage: "30"
+            audit-log-maxbackup: "10"
+            audit-log-maxsize: "100"
+            max-requests-inflight: "400"
+            max-mutating-requests-inflight: "200"
+            enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,PodSecurity"
+        etcd:
+          local:
+            extraArgs:
+              quota-backend-bytes: "2147483648"
+              auto-compaction-retention: "8"
+              auto-compaction-mode: "periodic"
+        controllerManager:
+          extraArgs:
+            node-monitor-grace-period: "40s"
+      - |
+        kind: KubeletConfiguration
+        maxPods: 110
+        serializeImagePulls: false
+        evictionHard:
+          memory.available: "100Mi"
+          nodefs.available: "10%"
+          imagefs.available: "15%"
+    extraMounts:
+      # Observability: Alloy log collection (/var/log/pods — /var/log 전체 마운트는 Kind v0.31+ systemd 충돌)
+      - hostPath: /tmp/kind-logs
+        containerPath: /var/log/pods
+    extraPortMappings:
+      # Kong Gateway — 유일한 외부 진입점
+      - containerPort: 30080
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 30443
+        hostPort: 443
+        protocol: TCP
+
+  # --- Worker 1 ---
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: "az-a"
+    extraMounts:
+      - hostPath: /tmp/kind-logs
+        containerPath: /var/log/pods
+
+  # --- Worker 2 ---
+  - role: worker # LIGHT_PROFILE_REMOVE_MARKER
+    labels: # LIGHT_PROFILE_REMOVE_MARKER
+      topology.kubernetes.io/zone: "az-b" # LIGHT_PROFILE_REMOVE_MARKER
+    extraMounts: # LIGHT_PROFILE_REMOVE_MARKER
+      - hostPath: /tmp/kind-logs # LIGHT_PROFILE_REMOVE_MARKER
+        containerPath: /var/log/pods # LIGHT_PROFILE_REMOVE_MARKER

@@ -1,0 +1,120 @@
+# Loki - Production-parity configuration
+# Production: v3.6.4, monolithic, filesystem storage, TSDB v13
+# Lab: identical settings and limits (loki chart 6.53.0 / Loki 3.6.5)
+#
+# Production reference: infrastructure/observability/compose/prod/monitoring-server/loki/loki-config.yml
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+    ring:
+      kvstore:
+        store: inmemory
+
+  storage:
+    type: filesystem
+
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb                   # Production-identical
+        object_store: filesystem
+        schema: v13                   # Production-identical (OTLP native support)
+        index:
+          prefix: index_
+          period: 24h
+
+  # Production-identical ingester settings
+  # Note: wal_dir, replay_memory_ceiling were removed in Loki 3.6.x
+  ingester:
+    max_chunk_age: 2h                 # Production: 2h (reduces small chunk overhead)
+    chunk_target_size: 1572864        # Production: 1.5MB
+    chunk_retain_period: 30s          # Production-identical
+
+  # Production-identical storage config
+  # Note: tsdb_shipper paths must use /var/loki (chart's common.path_prefix)
+  storage_config:
+    tsdb_shipper:
+      active_index_directory: /var/loki/tsdb-index
+      cache_location: /var/loki/tsdb-cache
+      cache_ttl: 24h
+
+  # Production-identical compactor
+  compactor:
+    working_directory: /var/loki/compactor
+    retention_enabled: true
+    delete_request_store: filesystem
+
+  # Production-identical limits
+  limits_config:
+    ingestion_rate_mb: 25             # Production-identical
+    ingestion_burst_size_mb: 50       # Production-identical
+    per_stream_rate_limit: 5MB        # Production-identical
+    per_stream_rate_limit_burst: 15MB # Production: 5MB x3 (Java stack trace bursts)
+    max_entries_limit_per_query: 3000 # Production: 3000 (single-node memory protection)
+    max_query_parallelism: 16         # Production: 16 (single-node CPU protection)
+    retention_period: 168h            # Production: 7 days
+    max_streams_per_user: 5000        # Production: cardinality protection
+    max_query_lookback: 168h          # Production: matches retention
+
+  # Production-identical querier
+  querier:
+    max_concurrent: 12                # Production: 12 (scaled for multi-app)
+
+  # Production-identical frontend
+  frontend:
+    compress_responses: true
+    log_queries_longer_than: 5s
+
+  # Production-identical query range cache
+  query_range:
+    results_cache:
+      cache:
+        embedded_cache:
+          enabled: true
+          max_size_mb: 50             # Production: 50 (reduced from 100)
+
+  analytics:
+    reporting_enabled: false
+
+singleBinary:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 3Gi                     # Production: 3G
+    requests:
+      cpu: 100m
+      memory: 1Gi                     # Production: 1G reservation
+  persistence:
+    size: 10Gi
+
+# Disable distributed components
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false
+
+gateway:
+  enabled: false
+
+minio:
+  enabled: false
+
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false

@@ -1,0 +1,53 @@
+# ArgoCD - Production-parity configuration
+# Production: v3.3.0, chart 9.4.2, server=2, repoServer=2, applicationSet=2
+# Lab: single replicas, otherwise identical
+#
+# Differences from production:
+#   - All replicas: 1 (production: server=2, repoServer=2, applicationSet=2)
+#   - ClusterIP (production: LoadBalancer behind Kong Gateway)
+#   - server.insecure: true (production uses cert-manager TLS)
+
+server:
+  replicas: 1                         # Production: 2
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+controller:
+  replicas: 1                         # Production: 1 (identical)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+repoServer:
+  replicas: 1                         # Production: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+applicationSet:
+  replicas: 1                         # Production: 2
+
+configs:
+  params:
+    server.insecure: true             # Lab only — no TLS (production uses cert-manager)
+
+# Production sync policy reference (applied via ApplicationSet):
+# syncPolicy:
+#   automated: { prune: true, selfHeal: true, allowEmpty: false }
+#   syncOptions: [CreateNamespace=true, PrunePropagationPolicy=foreground, PruneLast=true]
+#   retry: { limit: 5, backoff: { duration: 5s, factor: 2, maxDuration: 3m } }

@@ -1,0 +1,9 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "demo-app.labels" (dict "component" "frontend" "global" .Values.global) | nindent 4 }}
+{{- end }}

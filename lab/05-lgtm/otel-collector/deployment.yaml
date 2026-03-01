@@ -1,0 +1,90 @@
+# OTel Collector Gateway Deployment
+# Production: v0.118.0 as DaemonSet on K8s worker nodes
+# Lab: single Deployment (gateway mode), same config
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: monitoring
+  labels:
+    app: otel-collector
+    app.kubernetes.io/name: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+        app.kubernetes.io/name: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.146.1  # Latest stable (2026-03-01)
+          args:
+            - --config=/etc/otelcol/otel-collector-config.yaml
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+              protocol: TCP
+            - containerPort: 4318
+              name: otlp-http
+              protocol: TCP
+            - containerPort: 8888
+              name: metrics
+              protocol: TCP
+          env:
+            - name: GOMEMLIMIT
+              value: "409MiB"         # 512Mi × 80% (production: 2048M × 80% = 1638MiB)
+          resources:
+            requests:
+              cpu: 100m               # Production: 100m
+              memory: 256Mi           # Production: 256Mi (K8s DaemonSet)
+            limits:
+              cpu: 500m               # Production: 500m
+              memory: 512Mi           # Production: 512Mi (K8s DaemonSet)
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otelcol
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: otel-config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: monitoring
+  labels:
+    app: otel-collector
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - port: 4317
+      targetPort: 4317
+      name: otlp-grpc
+      protocol: TCP
+    - port: 4318
+      targetPort: 4318
+      name: otlp-http
+      protocol: TCP
+    - port: 8888
+      targetPort: 8888
+      name: metrics
+      protocol: TCP

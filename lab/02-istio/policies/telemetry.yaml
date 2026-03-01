@@ -1,0 +1,14 @@
+# Telemetry - Production-parity configuration
+# Production: accessLogging (envoy) + metrics (prometheus)
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: istio-system
+spec:
+  accessLogging: # Production-identical
+    - providers:
+        - name: envoy
+  metrics: # Production-identical
+    - providers:
+        - name: prometheus

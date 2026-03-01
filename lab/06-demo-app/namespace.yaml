@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    app: demo
+    env: dev
+    team: platform
+    istio.io/dataplane-mode: ambient

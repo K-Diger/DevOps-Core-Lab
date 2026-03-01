@@ -1,0 +1,20 @@
+# AuthorizationPolicy: Only frontend + Kong Gateway can access backend
+# This demonstrates SPIFFE ID-based L4 access control
+# - frontend: E-W (pod-to-pod) traffic
+# - kong-gateway: N-S (external → Kong → backend) traffic
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: backend-allow-frontend-only
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/demo/sa/frontend"
+              - "cluster.local/ns/kong/sa/kong-gateway"

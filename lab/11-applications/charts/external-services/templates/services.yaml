@@ -1,0 +1,42 @@
+# Headless Service + Endpoints for each external infrastructure service
+# Pattern: K8s DNS (e.g. mssql-eam.mis-dev.svc.cluster.local) → Docker Compose IP
+{{- range .Values.services }}
+{{- if .enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  labels:
+    app: {{ .name }}
+    {{- include "external-services.labels" $ | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+  {{- range .ports }}
+    - port: {{ .port }}
+      targetPort: {{ .targetPort | default .port }}
+      protocol: {{ .protocol | default "TCP" }}
+      name: {{ .name }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: {{ .name }}
+  labels:
+    app: {{ .name }}
+    {{- include "external-services.labels" $ | nindent 4 }}
+subsets:
+  - addresses:
+    {{- range .addresses }}
+      - ip: {{ .ip }}
+    {{- end }}
+    ports:
+    {{- range .ports }}
+      - port: {{ .port }}
+        protocol: {{ .protocol | default "TCP" }}
+        name: {{ .name }}
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,8 @@
+# External Services Chart
+# Maps Docker Compose infrastructure services to K8s headless Service + Endpoints
+# so that K8s Pods can access external DB/Redis/Kafka/ES by K8s DNS name.
+apiVersion: v2
+name: external-services
+description: Headless Services + Endpoints for Docker Compose infrastructure (DB, Redis, Kafka, ES)
+version: 0.1.0
+appVersion: "1.0.0"

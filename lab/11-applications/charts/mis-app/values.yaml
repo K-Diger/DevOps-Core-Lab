@@ -1,0 +1,101 @@
+# Default values for mis-app
+replicaCount: 1
+
+image:
+  registry: dev-mis-registry.smiledev.net
+  repository: ""  # Required: e.g., ep-be-eam/dev-eam-api
+  tag: "1.0.0"
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: harbor-pull-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+spring:
+  profile: dev
+
+otel:
+  enabled: true
+  endpoint: http://otel-collector.monitoring.svc:4318
+  protocol: http/protobuf
+  serviceName: ""  # Required: e.g., ep-be-eam-api
+  resourceAttributes: "service.namespace=mis-dev,deployment.environment=development"
+
+kafka:
+  consumerAutoStartup: "false"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+probes:
+  # Default paths for apps WITHOUT management.endpoint.health.probes.enabled=true
+  # (EAM, ITG, GEA, TLM → only /actuator/health works)
+  # Override in per-app values for apps with K8s probes enabled (Observer)
+  startup:
+    enabled: true
+    path: /actuator/health
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 36        # 10 + 36*5 = 190s max startup time
+    timeoutSeconds: 3
+  readiness:
+    path: /actuator/health
+    initialDelaySeconds: 0      # startup probe handles the wait
+    periodSeconds: 5
+    failureThreshold: 2
+    timeoutSeconds: 3
+  liveness:
+    path: /actuator/health
+    initialDelaySeconds: 0      # startup probe handles the wait
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 3
+
+rollout:
+  enabled: true
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause: {duration: 30s}
+        - setWeight: 50
+        - pause: {duration: 30s}
+        - setWeight: 80
+        - pause: {duration: 30s}
+      analysis:
+        templates:
+          - templateName: success-rate
+            clusterScope: true
+        args:
+          - name: service-name
+            value: ""  # Set per app
+          - name: namespace
+            value: mis-dev
+
+httpRoute:
+  enabled: false
+  hostname: ""  # e.g., eam.lab-dev.local
+  gateway:
+    name: kong-gateway
+    namespace: kong
+    sectionName: http
+
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1

@@ -1,0 +1,20 @@
+fullnameOverride: eam-api
+image:
+  repository: ep-be-eam/dev-eam-api
+otel:
+  serviceName: ep-be-eam-api
+httpRoute:
+  enabled: true
+  hostname: eam.lab-dev.local
+rollout:
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: success-rate
+            clusterScope: true
+        args:
+          - name: service-name
+            value: ep-be-eam-api
+          - name: namespace
+            value: mis-dev

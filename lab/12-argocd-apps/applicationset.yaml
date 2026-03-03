@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: mis-platform
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - name: eam-api
+            valuesFile: values-eam.yaml
+          - name: tlm-api
+            valuesFile: values-tlm.yaml
+          - name: gea-api
+            valuesFile: values-gea.yaml
+          - name: itg-api
+            valuesFile: values-itg.yaml
+          - name: observer-api
+            valuesFile: values-observer.yaml
+  template:
+    metadata:
+      name: "{{.name}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: mis-platform
+        env: dev
+    spec:
+      project: default
+      source:
+        # Local path for lab. For production: use git repo URL
+        repoURL: https://github.com/placeholder/DevOps-Core-Lab.git
+        targetRevision: HEAD
+        path: lab/11-applications/charts/mis-app
+        helm:
+          valueFiles:
+            - "{{.valuesFile}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: mis-dev
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

@@ -1,0 +1,131 @@
+# HTTPRoute for EAM API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: eam-api
+  namespace: mis-dev
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+      sectionName: http
+  hostnames:
+    - "eam.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: eam-api
+          port: 8080
+---
+# HTTPRoute for TLM API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: tlm-api
+  namespace: mis-dev
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+      sectionName: http
+  hostnames:
+    - "tlm.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: tlm-api
+          port: 8080
+---
+# HTTPRoute for GEA API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: gea-api
+  namespace: mis-dev
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+      sectionName: http
+  hostnames:
+    - "gea.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: gea-api
+          port: 8080
+---
+# HTTPRoute for ITG API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: itg-api
+  namespace: mis-dev
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+      sectionName: http
+  hostnames:
+    - "itg.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: itg-api
+          port: 8080
+---
+# HTTPRoute for Common API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: common-api
+  namespace: mis-dev
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+      sectionName: http
+  hostnames:
+    - "common.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: common-api
+          port: 8080
+---
+# HTTPRoute for Observer API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: observer-api
+  namespace: mis-dev
+spec:
+  parentRefs:
+    - name: kong-gateway
+      namespace: kong
+      sectionName: http
+  hostnames:
+    - "observer.lab-dev.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: observer-api
+          port: 8080

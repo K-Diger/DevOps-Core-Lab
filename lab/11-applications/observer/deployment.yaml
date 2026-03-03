@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observer-api
+  namespace: mis-dev
+  labels:
+    app: observer-api
+    app.kubernetes.io/name: observer-api
+    app.kubernetes.io/part-of: mis-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: observer-api
+  template:
+    metadata:
+      labels:
+        app: observer-api
+        app.kubernetes.io/name: observer-api
+    spec:
+      imagePullSecrets:
+        - name: harbor-pull-secret
+      containers:
+        - name: observer-api
+          image: dev-mis-registry.smiledev.net/mis-observer/dev-observer-api:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: dev
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.monitoring.svc:4318
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_SDK_DISABLED
+              value: "false"
+            - name: OTEL_SERVICE_NAME
+              value: mis-observer-api
+            - name: OTEL_METRICS_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=mis-dev,deployment.environment=development"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: observer-api
+  namespace: mis-dev
+  labels:
+    app: observer-api
+spec:
+  selector:
+    app: observer-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http

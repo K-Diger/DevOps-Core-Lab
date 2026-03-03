@@ -1,0 +1,22 @@
+fullnameOverride: gea-api
+image:
+  repository: ep-be-gea/dev-gea-api
+otel:
+  serviceName: ep-be-gea-api
+kafka:
+  consumerAutoStartup: "true"
+httpRoute:
+  enabled: true
+  hostname: gea.lab-dev.local
+rollout:
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: success-rate
+            clusterScope: true
+        args:
+          - name: service-name
+            value: ep-be-gea-api
+          - name: namespace
+            value: mis-dev

@@ -1,0 +1,31 @@
+# Istio ServiceEntry — required when outboundTrafficPolicy=REGISTRY_ONLY
+# Allows mesh pods to reach external Docker Compose services
+{{- if .Values.istio.serviceEntryEnabled }}
+{{- range .Values.services }}
+{{- if .enabled }}
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: {{ .name }}-external
+  labels:
+    app: {{ .name }}
+    {{- include "external-services.labels" $ | nindent 4 }}
+spec:
+  hosts:
+    - {{ .name }}.{{ $.Release.Namespace }}.svc.cluster.local
+  location: MESH_EXTERNAL
+  ports:
+  {{- range .ports }}
+    - number: {{ .port }}
+      name: {{ .name }}
+      protocol: {{ .protocol | default "TCP" }}
+  {{- end }}
+  resolution: STATIC
+  endpoints:
+  {{- range .addresses }}
+    - address: {{ .ip }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,17 @@
+fullnameOverride: common-api
+image:
+  repository: ep-be-common/dev-common-api
+otel:
+  serviceName: ep-be-common-api
+httpRoute:
+  enabled: true
+  hostname: common.lab-dev.local
+rollout:
+  strategy:
+    canary:
+      analysis:
+        args:
+          - name: service-name
+            value: ep-be-common-api
+          - name: namespace
+            value: mis-dev

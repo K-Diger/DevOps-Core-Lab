@@ -1,0 +1,27 @@
+fullnameOverride: tlm-api
+image:
+  repository: ep-be-tlm/dev-tlm-api
+otel:
+  serviceName: ep-be-tlm-api
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+httpRoute:
+  enabled: true
+  hostname: tlm.lab-dev.local
+rollout:
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: success-rate
+            clusterScope: true
+        args:
+          - name: service-name
+            value: ep-be-tlm-api
+          - name: namespace
+            value: mis-dev

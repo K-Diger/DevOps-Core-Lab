@@ -1,0 +1,31 @@
+# Argo Rollouts - Production parity config
+# Production: v1.8.0, Gateway API integration, Prometheus analysis
+
+controller:
+  replicas: 1  # Lab: single replica (prod: 1)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false  # Using OTel Collector scrape instead
+
+# Gateway API plugin for traffic management
+providerPlugins:
+  gatewayAPI:
+    enabled: true
+
+dashboard:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

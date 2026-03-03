@@ -1,0 +1,48 @@
+# LIVE environment — Docker Compose infrastructure IPs
+# Network: live 망 (10.125.11.x)
+# Source: NODE-MAPPING.md
+istio:
+  serviceEntryEnabled: true
+
+services:
+  # ──── Database (MSSQL) ────
+  - name: mssql
+    enabled: true
+    addresses:
+      - ip: 10.125.11.100    # TODO: live MSSQL server IP
+    ports:
+      - port: 1433
+        name: mssql
+
+  # ──── Cache (Redis Cluster) ────
+  - name: redis
+    enabled: true
+    addresses:
+      - ip: 10.125.11.60     # Redis node 1
+      - ip: 10.125.11.121    # Redis node 2
+      - ip: 10.125.11.227    # Redis node 3
+    ports:
+      - port: 6379
+        name: redis
+
+  # ──── Messaging (Kafka) ────
+  - name: kafka
+    enabled: true
+    addresses:
+      - ip: 10.125.11.137    # Kafka broker 1
+      - ip: 10.125.11.20     # Kafka broker 2
+      - ip: 10.125.11.41     # Kafka broker 3
+    ports:
+      - port: 9092
+        name: kafka
+
+  # ──── Search (Elasticsearch) ────
+  - name: elasticsearch
+    enabled: true
+    addresses:
+      - ip: 10.125.11.26     # ES node 1
+      - ip: 10.125.11.27     # ES node 2
+      - ip: 10.125.11.28     # ES node 3
+    ports:
+      - port: 9200
+        name: http

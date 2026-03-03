@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1772513210564,
+  "projectRoot": "/Users/dohyeonkim/Desktop/Work/code/DevOps-Core-Lab",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "01-kubernetes": {
+      "path": "01-kubernetes",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1772513210355,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "02-observability": {
+      "path": "02-observability",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1772513210359,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "03-security": {
+      "path": "03-security",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1772513210361,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "04-middleware": {
+      "path": "04-middleware",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1772513210363,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "05-cicd": {
+      "path": "05-cicd",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1772513210364,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "06-opensource": {
+      "path": "06-opensource",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1772513210365,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "lab": {
+      "path": "lab",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1772513210365,
+      "keyFiles": [
+        "HANDS-ON-GUIDE.md",
+        "README.md",
+        "setup.sh",
+        "teardown.sh",
+        "verify-all.sh"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "lab/11-applications/charts/mis-app/values.yaml",
+      "accessCount": 7,
+      "lastAccessed": 1772516151975,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/mis-app/values-observer.yaml",
+      "accessCount": 6,
+      "lastAccessed": 1772516183980,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/mis-app/templates/rollout.yaml",
+      "accessCount": 5,
+      "lastAccessed": 1772516165092,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/mis-app/values-itg.yaml",
+      "accessCount": 4,
+      "lastAccessed": 1772516173893,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/mis-app/values-tlm.yaml",
+      "accessCount": 4,
+      "lastAccessed": 1772516174598,
+      "type": "file"
+    },
+    {
+      "path": "lab/12-argocd-apps/applicationset.yaml",
+      "accessCount": 3,
+      "lastAccessed": 1772513350739,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/mis-app/values-gea.yaml",
+      "accessCount": 3,
+      "lastAccessed": 1772516174232,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/mis-app/values-eam.yaml",
+      "accessCount": 2,
+      "lastAccessed": 1772516173427,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/Chart.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1772514942387,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/templates/_helpers.tpl",
+      "accessCount": 1,
+      "lastAccessed": 1772514943570,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/templates/services.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1772514948201,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/templates/serviceentry.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1772514951546,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/values.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1772514959653,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/values-dev.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1772514966248,
+      "type": "file"
+    },
+    {
+      "path": "lab/11-applications/charts/external-services/values-live.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1772514969492,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

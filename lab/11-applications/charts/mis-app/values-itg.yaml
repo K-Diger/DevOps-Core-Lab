@@ -1,0 +1,20 @@
+fullnameOverride: itg-api
+image:
+  repository: ep-be-itg/itg-api
+otel:
+  serviceName: ep-be-itg-api
+httpRoute:
+  enabled: true
+  hostname: itg.lab-dev.local
+rollout:
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: success-rate
+            clusterScope: true
+        args:
+          - name: service-name
+            value: ep-be-itg-api
+          - name: namespace
+            value: mis-dev

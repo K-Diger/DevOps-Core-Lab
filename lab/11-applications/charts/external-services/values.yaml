@@ -1,0 +1,13 @@
+# Default values — override per environment (values-dev.yaml, values-live.yaml)
+istio:
+  serviceEntryEnabled: true
+
+services: []
+# Example:
+#   - name: mssql-eam
+#     enabled: true
+#     addresses:
+#       - ip: 10.125.11.100
+#     ports:
+#       - port: 1433
+#         name: mssql

@@ -1,0 +1,80 @@
+{
+  "agents": [
+    {
+      "agent_id": "ac2ee6515c8588b30",
+      "agent_type": "Explore",
+      "started_at": "2026-03-03T02:37:01.803Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:39:09.677Z",
+      "duration_ms": 127874
+    },
+    {
+      "agent_id": "adcf7453b04130bca",
+      "agent_type": "Explore",
+      "started_at": "2026-03-03T02:37:08.781Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:38:19.410Z",
+      "duration_ms": 70629
+    },
+    {
+      "agent_id": "a37877d9b92db806f",
+      "agent_type": "Explore",
+      "started_at": "2026-03-03T02:37:14.026Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:38:35.318Z",
+      "duration_ms": 81292
+    },
+    {
+      "agent_id": "acbd03307958bd728",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-03-03T02:40:47.132Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:43:22.520Z",
+      "duration_ms": 155388
+    },
+    {
+      "agent_id": "a191977775e3a926e",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-03-03T02:40:59.299Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:50:31.706Z",
+      "duration_ms": 572407
+    },
+    {
+      "agent_id": "acc5e63ee656bffb6",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-03-03T02:41:27.033Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:42:29.241Z",
+      "duration_ms": 62208
+    },
+    {
+      "agent_id": "aa8c25f95ecaad7ed",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-03-03T02:41:51.743Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T02:42:44.755Z",
+      "duration_ms": 53012
+    },
+    {
+      "agent_id": "a92c09f498e03858c",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-03-03T04:44:29.901Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-03T04:46:03.055Z",
+      "duration_ms": 93154
+    }
+  ],
+  "total_spawned": 8,
+  "total_completed": 8,
+  "total_failed": 0,
+  "last_updated": "2026-03-03T04:46:49.932Z"
+}
